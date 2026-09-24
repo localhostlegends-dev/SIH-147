@@ -15,7 +15,9 @@ import streamlit as st
 from rfsig.io import IQ_FORMATS, guess_fs_from_name, load_signal
 from rfsig.modem import constellation
 from rfsig.params import waterfall
+from rfsig.fec import FEC_CODES
 from rfsig.pipeline import AnalysisOptions, run
+from rfsig.utils import bits_to_hex
 
 ROOT = Path(__file__).resolve().parent
 SAMPLES = ROOT / "samples"
@@ -255,4 +257,176 @@ with tabs[4]:
                    + " produces a sharp spectral line exactly at the symbol rate.")
 
 st.divider()
-st.caption("Decoding results (interleaver, FEC, header / payload, decoded message) are added in the next step.")
+
+# ============================================================================
+# Decoding results
+# ============================================================================
+st.subheader("Decoding")
+
+fr, ident, corr = res.framing, res.ident, res.corr
+if fr is None:
+    st.warning("No frames were found, so nothing could be decoded. "
+               "Try setting the modulation or symbol rate by hand in the sidebar.")
+    st.stop()
+
+fec_label = FEC_CODES[res.fec_name].label if res.fec_name else "-"
+c = st.columns(4)
+c[0].metric("Frames found", len(fr.starts), help=f"{fr.period} bits per frame · {fr.mode}")
+c[1].metric("Interleaver", ident.best.interleaver.describe() if ident and ident.best else "-")
+c[2].metric("Error correction", res.fec_name or "-", help=fec_label)
+c[3].metric("Message recovered", f"{len(corr.message)} chars" if corr else "-")
+
+dtabs = st.tabs(["Frame sync", "Interleaver + FEC", "Decode quality", "Header / payload",
+                 "Message", "Export"])
+
+# ---- frame sync ------------------------------------------------------------
+with dtabs[0]:
+    if fr.corr_trace is not None:
+        step = max(len(fr.corr_trace) // 40000, 1)
+        x = np.arange(0, len(fr.corr_trace), step)
+        fig = go.Figure(go.Scattergl(x=x, y=fr.corr_trace[::step], mode="lines",
+                                     line=dict(color=C_MAIN, width=1), name="preamble correlation",
+                                     hovertemplate="bit %{x}<br>%{y:.2f}<extra></extra>"))
+        fig.add_trace(go.Scattergl(x=fr.starts, y=fr.peak_values, mode="markers", name="frame start",
+                                   marker=dict(size=9, color=C_ACCENT, symbol="circle-open",
+                                               line=dict(width=2))))
+        fig.add_hline(y=0.75, line=dict(color=C_ACCENT, width=1.5, dash="dot"),
+                      annotation_text="detection threshold", annotation_position="bottom right")
+        st.plotly_chart(base_layout(fig, "Bit position in the demodulated stream", "Correlation"),
+                        width="stretch")
+        st.caption(f"The 48-bit preamble is slid along the bitstream. Each peak is one frame: "
+                   f"{len(fr.starts)} found, every {fr.period} bits. Carrier-phase ambiguity resolved "
+                   f"as '{fr.hypothesis}'.")
+    elif fr.constancy is not None:
+        fig = go.Figure(go.Scattergl(x=np.arange(len(fr.constancy)), y=fr.constancy, mode="lines",
+                                     line=dict(color=C_MAIN, width=1), name="bit constancy"))
+        st.plotly_chart(base_layout(fig, "Bit position in the frame", "Fraction of frames agreeing"),
+                        width="stretch")
+        st.caption("Blind framing: the frame period comes from the autocorrelation of the bitstream, "
+                   "and the flat region at the start is the repeated preamble.")
+    if fr.hypothesis_scores:
+        with st.expander("Why this phase rotation"):
+            rows = [{"hypothesis": k, "score": round(v, 2)} for k, v in
+                    sorted(fr.hypothesis_scores.items(), key=lambda kv: -kv[1])]
+            st.dataframe(rows, width="stretch", hide_index=True)
+            st.caption("A PSK/QAM receiver cannot tell which constellation point is 'north'. Every "
+                       "rotation (and a spectrum flip) is tried; the preamble picks the winner.")
+
+# ---- interleaver + FEC identification --------------------------------------
+with dtabs[1]:
+    if not (ident and ident.best):
+        st.warning(ident.note if ident else "Identification did not run.")
+    else:
+        c = st.columns(3)
+        c[0].metric("Identification score", f"{ident.best.score:.3f}", help="1.0 = perfect code structure")
+        c[1].metric("Hypotheses tested", f"{ident.n_tested:,}")
+        c[2].metric("Coded block", f"{ident.best.coded_len} bits",
+                    help=f"{ident.best.pad} pad bits at the end of each frame")
+        st.markdown(f"**Winner:** {ident.best.interleaver.describe()} · {fec_label}")
+        rows = [c_.as_row() for c_ in ident.ranked[:10]]
+        top = rows[:8][::-1]
+        fig = go.Figure(go.Bar(x=[r["score"] for r in top],
+                               y=[f'{r["interleaver"]} · {r["fec"].split(" (")[0]}' for r in top],
+                               orientation="h", marker_color=C_MAIN, name="structure score",
+                               text=[f'{r["score"]:.2f}' for r in top], textposition="outside",
+                               hovertemplate="%{y}<br>score %{x:.3f}<extra></extra>"))
+        fig = base_layout(fig, "Structure score (1.0 = fits perfectly)", "", 420)
+        fig.update_layout(showlegend=False, margin=dict(l=10, r=40, t=30, b=10))
+        fig.update_xaxes(range=[0, 1.12])
+        st.plotly_chart(fig, width="stretch")
+        st.dataframe(rows, width="stretch", hide_index=True)
+        st.caption("Every interleaver shape, convolutional setting and pseudo-random seed is tried "
+                   "against every candidate code. A wrong guess scores near 0 because the parity "
+                   "relations of a real code only hold for the right one, so the winner is unambiguous.")
+
+# ---- decode quality --------------------------------------------------------
+with dtabs[2]:
+    bers = [s.get("channel_ber") for s in res.frame_stats if s.get("channel_ber") is not None]
+    corrected = [s.get("corrected_symbols") for s in res.frame_stats
+                 if s.get("corrected_symbols") is not None]
+    iters = [s.get("iterations") for s in res.frame_stats if s.get("iterations") is not None]
+    ok_frames = sum(1 for s in res.frame_stats if s.get("ok"))
+    c = st.columns(4)
+    c[0].metric("Frames decoded", f"{ok_frames}/{len(res.frame_stats)}")
+    c[1].metric("Channel BER before FEC", f"{np.mean(bers):.2e}" if bers else "-",
+                help="Estimated by re-encoding the decoded bits and comparing with what was received")
+    c[2].metric("RS symbols corrected", f"{int(np.sum(corrected))}" if corrected else "-",
+                help="Byte errors repaired by the Reed-Solomon decoder")
+    c[3].metric("LDPC iterations", f"{np.mean(iters):.1f}" if iters else "-")
+    series = bers or corrected or iters
+    if series:
+        name = "channel BER" if bers else ("RS symbols corrected" if corrected else "LDPC iterations")
+        fig = go.Figure(go.Bar(x=np.arange(len(series)), y=series, marker_color=C_MAIN, name=name,
+                               hovertemplate="frame %{x}<br>%{y}<extra></extra>"))
+        fig = base_layout(fig, "Frame", name, 340)
+        fig.update_layout(showlegend=False)
+        st.plotly_chart(fig, width="stretch")
+    st.caption("Errors the channel introduced, and what the error-correction decoder repaired. "
+               "The message below is what survived that repair.")
+
+# ---- header / payload ------------------------------------------------------
+with dtabs[3]:
+    if corr is None or not corr.frames:
+        st.info("No decoded frames to correlate.")
+    else:
+        prof = corr.constancy
+        fig = go.Figure(go.Scattergl(x=np.arange(len(prof)), y=prof, mode="lines",
+                                     line=dict(color=C_MAIN, width=1.5), name="bit constancy",
+                                     hovertemplate="bit %{x}<br>%{y:.2f}<extra></extra>"))
+        fig.add_vline(x=corr.header_len_est, line=dict(color=C_ACCENT, width=2, dash="dash"),
+                      annotation_text="header ends", annotation_position="top")
+        fig.add_hline(y=0.5, line=dict(color=C_MUTED, width=1, dash="dot"))
+        fig = base_layout(fig, "Bit position in the decoded frame", "Fraction of frames agreeing", 360)
+        fig.update_layout(showlegend=False)
+        fig.update_yaxes(range=[0.4, 1.05])
+        st.plotly_chart(fig, width="stretch")
+        st.caption(f"Stack the decoded frames and ask how often each bit position repeats. The header "
+                   f"stays constant (sync word, type, length), the frame counter changes slowly and the "
+                   f"payload looks random, which puts the boundary near bit {corr.header_len_est} "
+                   f"without knowing the frame format.")
+        rows = []
+        for f in corr.frames:
+            rows.append({"frame": f["frame"], "sync at bit": f["sync_pos"], "sync match": f["sync_corr"],
+                         "counter": f.get("counter", "-"),
+                         "type": f"0x{f['type']:02X}" if "type" in f else "-",
+                         "length": f.get("length", "-"),
+                         "payload": (f.get("payload_text", "") or "")[:44]})
+        st.dataframe(rows, width="stretch", hide_index=True)
+        st.caption(f"Sync word {corr.sync_hex} located by cross-correlation in every frame, then the "
+                   f"header fields are read straight off the decoded bits.")
+
+# ---- message ---------------------------------------------------------------
+with dtabs[4]:
+    if corr and corr.message.strip():
+        st.success(f"{len(corr.message)} characters recovered from {len(corr.frames)} frames")
+        st.code(corr.message, language=None, wrap_lines=True)
+    else:
+        st.info("No readable payload was recovered. The bits are still available in the Export tab.")
+
+# ---- export ----------------------------------------------------------------
+with dtabs[5]:
+    bits = np.concatenate(res.info_frames) if res.info_frames else np.zeros(0, dtype=np.uint8)
+    report = {
+        "summary": res.summary(),
+        "log": [{"stage": s, "detail": t} for s, t in res.log],
+        "timings_s": res.timings,
+        "framing": {"mode": fr.mode, "frames": int(len(fr.starts)), "frame_bits": int(fr.period),
+                    "block_bits": int(fr.block_len), "ambiguity": fr.hypothesis,
+                    "preamble_hex": bits_to_hex(fr.preamble_bits)},
+        "identification": {"best": ident.best.as_row() if ident and ident.best else None,
+                           "hypotheses_tested": ident.n_tested if ident else 0,
+                           "ranked": [c_.as_row() for c_ in (ident.ranked[:10] if ident else [])]},
+        "frames": corr.frames if corr else [],
+        "message": corr.message if corr else "",
+    }
+    stem = Path(name).stem
+    c = st.columns(3)
+    c[0].download_button("Decoded bits (.txt)", "".join(map(str, bits.tolist())),
+                         file_name=f"{stem}_bits.txt", width="stretch")
+    payload = "".join(f.get("payload_text", "") for f in (corr.frames if corr else []))
+    c[1].download_button("Payload text (.txt)", payload or corr.message if corr else "",
+                         file_name=f"{stem}_payload.txt", width="stretch")
+    c[2].download_button("Analysis report (.json)", json.dumps(report, indent=2, default=str),
+                         file_name=f"{stem}_report.json", width="stretch")
+    st.caption(f"{len(bits):,} decoded information bits across {len(res.info_frames)} frames. "
+               f"The JSON report holds every parameter, the ranked hypotheses and the parsed frames.")

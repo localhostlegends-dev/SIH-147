@@ -1,0 +1,367 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "RF Signal Intelligence - System Architecture",
+    "output": "system-architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1280,
+      620
+    ],
+    "views": [
+      {
+        "id": "receiver-chain",
+        "label": "Receiver chain",
+        "focus": [
+          "recording",
+          "loader",
+          "params",
+          "demod",
+          "framing"
+        ],
+        "note": "Raw samples become a bitstream: parameters, modulation, symbols, frames."
+      },
+      {
+        "id": "blind-decoding",
+        "label": "Blind decoding",
+        "focus": [
+          "framing",
+          "identify",
+          "codes",
+          "correlate"
+        ],
+        "note": "Search every interleaver and code, decode, then locate header and payload."
+      },
+      {
+        "id": "test-harness",
+        "label": "Proving it works",
+        "focus": [
+          "generator",
+          "recording",
+          "correlate",
+          "regression"
+        ],
+        "note": "Synthetic signals with known settings check every stage end to end."
+      }
+    ],
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "Analyst GUI"
+        },
+        "backend": {
+          "label": "Processing stage"
+        },
+        "database": {
+          "label": "Code library"
+        },
+        "external": {
+          "label": "Files / harness"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "generator",
+      "type": "external",
+      "label": "Signal generator",
+      "sublabel": "rfsig.generator",
+      "tag": "known ground truth",
+      "pos": [
+        60,
+        90
+      ],
+      "size": [
+        180,
+        66
+      ]
+    },
+    {
+      "id": "recording",
+      "type": "external",
+      "label": "Recording",
+      "sublabel": ".wav / .IQ capture",
+      "tag": "HF / VHF / UHF",
+      "pos": [
+        280,
+        90
+      ],
+      "size": [
+        180,
+        66
+      ]
+    },
+    {
+      "id": "loader",
+      "type": "backend",
+      "label": "File loader",
+      "sublabel": "rfsig.io",
+      "tag": "cf32 ci16 ci8 cu8 wav",
+      "pos": [
+        500,
+        90
+      ],
+      "size": [
+        180,
+        66
+      ]
+    },
+    {
+      "id": "params",
+      "type": "backend",
+      "label": "Parameter extraction",
+      "sublabel": "rfsig.params",
+      "tag": "PSD, bandwidth, symbol rate",
+      "pos": [
+        720,
+        90
+      ],
+      "size": [
+        180,
+        66
+      ]
+    },
+    {
+      "id": "demod",
+      "type": "backend",
+      "label": "Classify + demodulate",
+      "sublabel": "rfsig.demod",
+      "tag": "PSK QAM FSK",
+      "pos": [
+        940,
+        90
+      ],
+      "size": [
+        180,
+        66
+      ]
+    },
+    {
+      "id": "framing",
+      "type": "backend",
+      "label": "Frame sync",
+      "sublabel": "rfsig.framing",
+      "tag": "preamble or blind",
+      "pos": [
+        60,
+        290
+      ],
+      "size": [
+        180,
+        66
+      ]
+    },
+    {
+      "id": "identify",
+      "type": "backend",
+      "label": "Interleaver + FEC ID",
+      "sublabel": "rfsig.identify",
+      "tag": "hypothesis search",
+      "pos": [
+        280,
+        290
+      ],
+      "size": [
+        180,
+        66
+      ]
+    },
+    {
+      "id": "correlate",
+      "type": "backend",
+      "label": "Bitstream correlation",
+      "sublabel": "rfsig.correlate",
+      "tag": "header / payload",
+      "pos": [
+        500,
+        290
+      ],
+      "size": [
+        180,
+        66
+      ]
+    },
+    {
+      "id": "gui",
+      "type": "frontend",
+      "label": "Analyst GUI",
+      "sublabel": "app.py (Streamlit)",
+      "tag": "plots, tables, export",
+      "pos": [
+        720,
+        290
+      ],
+      "size": [
+        180,
+        66
+      ]
+    },
+    {
+      "id": "codes",
+      "type": "database",
+      "label": "Code library",
+      "sublabel": "rfsig.fec + rfsig.interleave",
+      "tag": "Viterbi RS LDPC, 4 interleavers",
+      "pos": [
+        280,
+        470
+      ],
+      "size": [
+        200,
+        66
+      ]
+    },
+    {
+      "id": "regression",
+      "type": "external",
+      "label": "Regression check",
+      "sublabel": "scripts/decode_samples.py",
+      "tag": "pass / fail per file",
+      "pos": [
+        520,
+        470
+      ],
+      "size": [
+        190,
+        66
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "rfsig package - offline Python (numpy, scipy, reedsolo)",
+      "wraps": [
+        "loader",
+        "params",
+        "demod",
+        "framing",
+        "identify",
+        "correlate",
+        "codes"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "generator-writes",
+      "from": "generator",
+      "to": "recording",
+      "label": "synthetic files",
+      "variant": "dashed",
+      "labelDy": 57
+    },
+    {
+      "id": "capture-to-loader",
+      "from": "recording",
+      "to": "loader",
+      "label": "samples",
+      "variant": "emphasis",
+      "labelDy": 57
+    },
+    {
+      "id": "loader-to-params",
+      "from": "loader",
+      "to": "params",
+      "label": "complex baseband",
+      "labelDy": 57
+    },
+    {
+      "id": "params-to-demod",
+      "from": "params",
+      "to": "demod",
+      "label": "Rs, bandwidth",
+      "labelDy": 57
+    },
+    {
+      "id": "demod-to-framing",
+      "from": "demod",
+      "to": "framing",
+      "label": "soft bits",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          1030,
+          225
+        ],
+        [
+          150,
+          225
+        ]
+      ]
+    },
+    {
+      "id": "framing-to-identify",
+      "from": "framing",
+      "to": "identify",
+      "label": "frames",
+      "labelDy": 57
+    },
+    {
+      "id": "identify-to-correlate",
+      "from": "identify",
+      "to": "correlate",
+      "label": "decoded bits",
+      "labelDy": 57
+    },
+    {
+      "id": "correlate-to-gui",
+      "from": "correlate",
+      "to": "gui",
+      "label": "results",
+      "variant": "emphasis",
+      "labelDy": 57
+    },
+    {
+      "id": "identify-uses-codes",
+      "from": "codes",
+      "to": "identify",
+      "label": "candidate codes",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "regression-checks",
+      "from": "correlate",
+      "to": "regression",
+      "label": "checked vs truth",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Receiver chain",
+      "items": [
+        "Sampling rate from the WAV header, the file name or the analyst",
+        "Symbol rate from the cyclic spectral line; modulation from higher-order statistics or tone clustering",
+        "Matched filter, timing recovery and carrier recovery produce soft bits"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Blind decoding",
+      "items": [
+        "Frames found by preamble correlation, or blindly from period and bit constancy",
+        "Every interleaver shape and seed scored against every candidate code",
+        "The winner de-interleaves and decodes all frames; sync-word correlation splits header from payload"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Interfaces and proof",
+      "items": [
+        "Streamlit GUI for interactive analysis, command line for batch runs",
+        "Fully offline on a laptop: no GPU, no internet, no licence",
+        "The generator writes recordings with known settings, so every stage can be proven"
+      ]
+    }
+  ]
+}

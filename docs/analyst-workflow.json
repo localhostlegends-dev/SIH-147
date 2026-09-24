@@ -1,0 +1,292 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "RF Signal Intelligence - Analyst Workflow",
+    "output": "analyst-workflow.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "happy-path",
+        "label": "Load to answer",
+        "focus": [
+          "open",
+          "pick",
+          "settings",
+          "analyse",
+          "decode",
+          "review"
+        ],
+        "note": "The normal run: pick a recording, confirm two settings, read the results."
+      },
+      {
+        "id": "engine",
+        "label": "What runs by itself",
+        "focus": [
+          "analyse",
+          "decode",
+          "review"
+        ],
+        "note": "Everything between the file and the decoded message is automatic."
+      },
+      {
+        "id": "analyst-help",
+        "label": "When the analyst steps in",
+        "focus": [
+          "analyse",
+          "override",
+          "decode",
+          "blind"
+        ],
+        "note": "Any stage can be forced by hand when the automatic guess looks wrong."
+      }
+    ],
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "Analyst screen"
+        },
+        "backend": {
+          "label": "Automatic stage"
+        },
+        "security": {
+          "label": "Manual override"
+        },
+        "messagebus": {
+          "label": "Fallback mode"
+        },
+        "external": {
+          "label": "Starting point"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "analyst",
+      "label": "Analyst"
+    },
+    {
+      "id": "engine",
+      "label": "Analysis engine (automatic)"
+    },
+    {
+      "id": "options",
+      "label": "Manual control",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "intake",
+      "label": "Load a recording",
+      "fromCol": 0,
+      "toCol": 2
+    },
+    {
+      "id": "automatic",
+      "label": "Automatic analysis",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "results",
+      "label": "Read and hand over",
+      "fromCol": 5,
+      "toCol": 5
+    }
+  ],
+  "groups": [
+    {
+      "id": "manual_path",
+      "label": "Only when the automatic guess looks wrong",
+      "lane": "options",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "security"
+    }
+  ],
+  "mainPath": [
+    "open",
+    "pick",
+    "settings",
+    "analyse",
+    "decode",
+    "review"
+  ],
+  "nodes": [
+    {
+      "id": "open",
+      "lane": "analyst",
+      "col": 0,
+      "type": "external",
+      "label": "Start the tool",
+      "sublabel": "streamlit run app.py",
+      "width": 150
+    },
+    {
+      "id": "pick",
+      "lane": "analyst",
+      "col": 1,
+      "type": "frontend",
+      "label": "Pick a recording",
+      "sublabel": "sample or upload",
+      "tag": ".wav or raw .iq",
+      "width": 150
+    },
+    {
+      "id": "settings",
+      "lane": "analyst",
+      "col": 2,
+      "type": "frontend",
+      "label": "Confirm input",
+      "sublabel": "IQ format + sample rate",
+      "tag": "WAV reads its own header",
+      "width": 150
+    },
+    {
+      "id": "review",
+      "lane": "analyst",
+      "col": 5,
+      "type": "frontend",
+      "label": "Read the results",
+      "sublabel": "plots, ranked table, message",
+      "width": 150
+    },
+    {
+      "id": "analyse",
+      "lane": "engine",
+      "col": 3,
+      "type": "backend",
+      "label": "Measure + demodulate",
+      "sublabel": "bandwidth, symbol rate, modulation",
+      "tag": "1-4 s",
+      "width": 160
+    },
+    {
+      "id": "decode",
+      "lane": "engine",
+      "col": 4,
+      "type": "backend",
+      "label": "Identify + decode",
+      "sublabel": "interleaver, FEC, header, payload",
+      "width": 160
+    },
+    {
+      "id": "override",
+      "lane": "options",
+      "col": 3,
+      "type": "security",
+      "label": "Force a setting",
+      "sublabel": "modulation, symbol rate, code",
+      "width": 150
+    },
+    {
+      "id": "blind",
+      "lane": "options",
+      "col": 4,
+      "type": "messagebus",
+      "label": "Preamble unknown",
+      "sublabel": "blind frame search",
+      "tag": "slower",
+      "width": 150
+    }
+  ],
+  "edges": [
+    {
+      "id": "open-pick",
+      "from": "open",
+      "to": "pick",
+      "variant": "default"
+    },
+    {
+      "id": "pick-settings",
+      "from": "pick",
+      "to": "settings",
+      "variant": "default"
+    },
+    {
+      "id": "settings-analyse",
+      "from": "settings",
+      "to": "analyse",
+      "label": "run",
+      "variant": "emphasis"
+    },
+    {
+      "id": "analyse-decode",
+      "from": "analyse",
+      "to": "decode",
+      "label": "soft bits + frames",
+      "variant": "default"
+    },
+    {
+      "id": "decode-review",
+      "from": "decode",
+      "to": "review",
+      "label": "results",
+      "variant": "emphasis"
+    },
+    {
+      "id": "analyse-override",
+      "from": "analyse",
+      "to": "override",
+      "label": "guess looks wrong",
+      "variant": "security",
+      "role": "branch"
+    },
+    {
+      "id": "override-rerun",
+      "from": "override",
+      "to": "analyse",
+      "label": "re-run with your value",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "decode-blind",
+      "from": "decode",
+      "to": "blind",
+      "label": "no preamble match",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "blind-review",
+      "from": "blind",
+      "to": "review",
+      "variant": "dashed",
+      "role": "branch"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "What the analyst does",
+      "items": [
+        "Pick a sample or upload a capture",
+        "For raw .iq only: confirm the sample format and rate",
+        "Everything else is one click"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "What runs by itself",
+      "items": [
+        "Bandwidth, carrier offset, symbol rate, SNR and modulation",
+        "Frame sync, then thousands of interleaver and code hypotheses",
+        "Decoding, header / payload separation, and an exportable report"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "When it needs help",
+      "items": [
+        "Any stage can be forced by hand if the automatic guess looks wrong",
+        "Unknown preamble switches to a slower blind frame search",
+        "Re-running a changed setting is instant: results are cached"
+      ]
+    }
+  ]
+}

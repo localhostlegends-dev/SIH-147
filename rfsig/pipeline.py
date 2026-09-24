@@ -223,8 +223,10 @@ def _run(sig: SignalData, opts: AnalysisOptions, res: AnalysisResult):
                 if len(i) < len(sync_bits):
                     return False
                 cp = correlate_pattern(i, sync_bits)
-                # the sync word must open the decoded frame, not just appear somewhere
-                if cp[: 9].max() < 0.9:
+                # The sync word must OPEN the decoded frame, not merely appear somewhere:
+                # a framing that is a few bits off still decodes into something containing
+                # the sync word further along, and then every field after it is misread.
+                if cp[: 2].max() < 0.9:
                     return False
             return True
 

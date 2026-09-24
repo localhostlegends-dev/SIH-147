@@ -1,0 +1,95 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  svg{display:block}
+  .bx{fill:#dae8fc;stroke:#6c8ebf;stroke-width:2}
+  .ybx{fill:#ffe6cc;stroke:#d79b00;stroke-width:2}
+  .dia{fill:#1f6fc4;stroke:#1a5ea6;stroke-width:2}
+  .t{font-family:Helvetica,Arial,sans-serif;font-size:15px;fill:#000;text-anchor:middle}
+  .ts{font-family:Helvetica,Arial,sans-serif;font-size:13.5px;fill:#000;text-anchor:middle}
+  .td{font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;fill:#fff;text-anchor:middle}
+  .lbl{font-family:Helvetica,Arial,sans-serif;font-size:13px;fill:#000;text-anchor:middle}
+  .ln{stroke:#000;stroke-width:2.2;fill:none}
+</style></head>
+<body>
+<svg width="544" height="846" viewBox="0 0 544 846" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="544" height="846" fill="#fff"/>
+  <rect x="3" y="3" width="538" height="840" fill="none" stroke="#000" stroke-width="6"/>
+
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#000"/>
+    </marker>
+  </defs>
+
+  <!-- analyst -->
+  <g>
+    <circle cx="138" cy="42" r="27" fill="#000"/>
+    <rect x="86" y="78" width="104" height="24" rx="12" fill="#000"/>
+    <rect x="100" y="76" width="76" height="58" rx="16" fill="#000"/>
+    <rect x="106" y="130" width="26" height="44" rx="7" fill="#000"/>
+    <rect x="144" y="130" width="26" height="44" rx="7" fill="#000"/>
+  </g>
+
+  <!-- 1. input -->
+  <rect class="bx" x="262" y="26" width="258" height="114" rx="6"/>
+  <text class="ts" x="391" y="62">Provide input: select a sample</text>
+  <text class="ts" x="391" y="84">or upload a .wav / .IQ</text>
+  <text class="ts" x="391" y="106">recording from a sensor</text>
+
+  <!-- 2. decision -->
+  <path class="dia" d="M300 176 L404 240 L300 304 L196 240 Z"/>
+  <text class="td" x="300" y="220">Sampling rate</text>
+  <text class="td" x="300" y="242">known from</text>
+  <text class="td" x="300" y="264">the file?</text>
+
+  <rect x="172" y="248" width="30" height="22" fill="#bfbfbf"/>
+  <text class="lbl" x="187" y="264">No</text>
+  <rect x="306" y="308" width="34" height="22" fill="#bfbfbf"/>
+  <text class="lbl" x="323" y="324">Yes</text>
+
+  <!-- 3. manual setting (the only analyst-set values in the tool) -->
+  <rect class="ybx" x="20" y="198" width="150" height="84" rx="6"/>
+  <text class="ts" x="95" y="228">Analyst sets the</text>
+  <text class="ts" x="95" y="250">IQ byte format</text>
+  <text class="ts" x="95" y="272">and sampling rate</text>
+
+  <!-- 4. measure -->
+  <rect class="bx" x="96" y="336" width="308" height="82" rx="6"/>
+  <text class="t" x="250" y="367">System measures the signal and</text>
+  <text class="t" x="250" y="391">identifies the modulation</text>
+
+  <!-- 5. decode chain -->
+  <rect class="bx" x="40" y="456" width="420" height="100" rx="6"/>
+  <text class="ts" x="250" y="489">Demodulate, find the frames, identify the</text>
+  <text class="ts" x="250" y="511">interleaver and error-correction code,</text>
+  <text class="ts" x="250" y="533">de-interleave and decode</text>
+
+  <!-- cache shortcut -->
+  <rect class="bx" x="434" y="474" width="94" height="44" rx="6"/>
+  <text class="ts" x="481" y="502">Cached run</text>
+
+  <!-- 6. results -->
+  <rect class="ybx" x="70" y="600" width="350" height="90" rx="6"/>
+  <text class="t" x="245" y="637">Show results: plots, ranked</text>
+  <text class="t" x="245" y="661">hypotheses, decoded message</text>
+
+  <!-- 7. outcome -->
+  <rect class="bx" x="30" y="730" width="484" height="96" rx="6"/>
+  <text class="t" x="272" y="768">Report the signal's parameters and payload;</text>
+  <text class="t" x="272" y="792">export bits and a JSON report</text>
+
+  <!-- arrows -->
+  <path class="ln" d="M196 95 H262" marker-end="url(#a)"/>
+  <path class="ln" d="M300 140 V176" marker-end="url(#a)"/>
+  <path class="ln" d="M196 240 H170" marker-end="url(#a)"/>
+  <path class="ln" d="M95 282 V336" marker-end="url(#a)"/>
+  <path class="ln" d="M300 304 V336" marker-end="url(#a)"/>
+  <path class="ln" d="M250 418 V456" marker-end="url(#a)"/>
+  <path class="ln" d="M250 556 V600" marker-end="url(#a)"/>
+  <path class="ln" d="M481 140 V474" marker-end="url(#a)"/>
+  <path class="ln" d="M481 518 V645 H420" marker-end="url(#a)"/>
+  <path class="ln" d="M250 690 V730" marker-end="url(#a)"/>
+</svg>
+</body></html>
