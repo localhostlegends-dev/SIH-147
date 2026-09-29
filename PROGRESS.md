@@ -26,6 +26,7 @@ streamlit run app.py                   # the GUI, opens in your browser
 | `rfsig/identify.py` | 5. blind ID | Scores every interleaver + code hypothesis by algebraic structure |
 | `rfsig/correlate.py` | 6. correlation | Sync-word search, header parsing, header/payload split |
 | `rfsig/pipeline.py` | all | Runs the stages end to end |
+| `rfsig/report.py` | output | One-click PDF analyst report (reportlab, drawn from the arrays) |
 | `docs/system-architecture.html` | docs | Interactive system architecture diagram |
 | `docs/analyst-workflow.html` | docs | Interactive user-level workflow diagram |
 
@@ -42,6 +43,9 @@ Done:
 6. Blind-mode validation fix and `README.md` (setup, requirement mapping, how it works, demo script)
 
 All five build steps are complete.
+
+7. One-click PDF analyst report on the Export tab - parameters, spectrum, constellation,
+   ranked hypotheses, header/payload, message and the stage log, in three pages.
 
 ## Test status
 

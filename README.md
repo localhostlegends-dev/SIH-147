@@ -102,7 +102,7 @@ each stage found, in order.
 | Decode quality | Bit error rate before correction, Reed-Solomon bytes repaired, LDPC iterations |
 | Header / payload | Bit constancy across frames, the estimated header boundary, and parsed header fields per frame |
 | Message | The recovered text |
-| Export | Decoded bits, payload, and a JSON report |
+| Export | **One-click PDF analyst report**, plus decoded bits, payload and a JSON report |
 
 ---
 
@@ -186,6 +186,7 @@ rfsig/                      the analysis library
   identify.py               blind interleaver + code identification
   correlate.py              sync word, header/payload
   pipeline.py               runs the stages end to end
+  report.py                 the one-click PDF analyst report
   generator.py              synthetic transmitter used to make test signals
   utils.py                  bit helpers and constants
 scripts/
@@ -197,7 +198,7 @@ docs/
 samples/                    generated recordings + manifest.json (ground truth)
 ```
 
-Dependencies: numpy, scipy, reedsolo, streamlit, plotly. Everything else — Viterbi
+Dependencies: numpy, scipy, reedsolo, streamlit, plotly, reportlab. Everything else — Viterbi
 decoding, LDPC, the interleavers, the identification search — is implemented in this
 repository.
 

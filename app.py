@@ -17,6 +17,7 @@ from rfsig.modem import constellation
 from rfsig.params import waterfall
 from rfsig.fec import FEC_CODES
 from rfsig.pipeline import AnalysisOptions, run
+from rfsig.report import build_pdf
 from rfsig.utils import bits_to_hex
 
 ROOT = Path(__file__).resolve().parent
@@ -40,6 +41,13 @@ def analyse(name: str, data: bytes, fmt: str, fs: float | None, swap: bool):
     res = run(sig, AnalysisOptions())
     wf = waterfall(sig.samples[: res.options.max_samples], sig.fs)
     return res, wf
+
+
+@st.cache_resource(max_entries=8, show_spinner=False)
+def report_pdf(name: str, data: bytes, fmt: str, fs: float | None, swap: bool) -> bytes:
+    """The analyst report. Built from the cached analysis, so this is cheap."""
+    res_, _ = analyse(name, data, fmt, fs, swap)
+    return build_pdf(res_)
 
 
 def base_layout(fig: go.Figure, x: str, y: str, height: int = 380) -> go.Figure:
@@ -420,6 +428,14 @@ with dtabs[5]:
         "message": corr.message if corr else "",
     }
     stem = Path(name).stem
+    st.markdown("**Analyst report**")
+    st.download_button("Download the full report (.pdf)", report_pdf(name, data, fmt, fs, swap),
+                       file_name=f"{stem}_report.pdf", mime="application/pdf",
+                       type="primary", width="stretch")
+    st.caption("Three pages: the measured parameters, the spectrum and constellation, the ranked "
+               "interleaver and code hypotheses, the header/payload split, the recovered message and "
+               "the stage-by-stage log - the audit trail behind every number on this screen.")
+    st.markdown("**Raw data**")
     c = st.columns(3)
     c[0].download_button("Decoded bits (.txt)", "".join(map(str, bits.tolist())),
                          file_name=f"{stem}_bits.txt", width="stretch")
